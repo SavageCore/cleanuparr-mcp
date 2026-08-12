@@ -1,5 +1,6 @@
 """Offline contract tests for the Cleanuparr MCP tools."""
 
+import inspect
 import json
 
 import httpx
@@ -43,9 +44,15 @@ async def server(recorder, monkeypatch):
     await client.aclose()
 
 
+_OP_GROUP = {op: group for group, ops in cleanuparr_mcp._GROUPS.items() for op in ops}
+
+
 async def call(server, name, **kwargs):
+    """Call `name` (an operation name) through the portmanteau group tool
+    that now hosts it, so every existing per-operation test keeps working
+    unmodified aside from this helper."""
     async with Client(server) as client:
-        return await client.call_tool(name, kwargs)
+        return await client.call_tool(_OP_GROUP[name], {"operation": name, "arguments": kwargs})
 
 
 @pytest.mark.parametrize(
@@ -154,3 +161,69 @@ def test_main_requires_url(monkeypatch):
     monkeypatch.delenv("CLEANUPARR_URL", raising=False)
     with pytest.raises(SystemExit):
         cleanuparr_mcp.main()
+
+
+# --- full-surface smoke coverage ------------------------------------------------
+#
+# Only 38/84 tools had a precise request-shape assertion above (see AGENTS.md
+# history). Rather than guess at DTO shapes for the other 46 by hand, this
+# exercises every tool's actual URL-templating/body-marshaling code path via
+# introspection: real execution coverage without asserting values this repo
+# can't independently verify against Cleanuparr's DTOs. This is the baseline
+# that must stay green across the portmanteau consolidation.
+
+ALL_TOOL_NAMES = sorted(
+    n
+    for n in dir(cleanuparr_mcp)
+    if n.startswith("cleanuparr_") and inspect.iscoroutinefunction(getattr(cleanuparr_mcp, n))
+)
+
+
+def _sample_value(param: inspect.Parameter):
+    ann = str(param.annotation)
+    if "dict" in ann:
+        return {}
+    if "list" in ann:
+        return []
+    if "bool" in ann:
+        return True
+    if "int" in ann:
+        return 1
+    return "x"
+
+
+@pytest.mark.parametrize("name", ALL_TOOL_NAMES)
+async def test_every_tool_is_callable(server, recorder, name):
+    fn = getattr(cleanuparr_mcp, name)
+    kwargs = {
+        p.name: _sample_value(p)
+        for p in inspect.signature(fn).parameters.values()
+        if p.default is inspect.Parameter.empty
+    }
+    await call(server, name, **kwargs)
+    assert recorder.method in ("GET", "POST", "PUT", "DELETE", "PATCH")
+    assert recorder.url.path.startswith("/")
+
+
+# --- portmanteau grouping safety net --------------------------------------------
+
+def test_all_tools_grouped():
+    """Every tool function must land in exactly one portmanteau group - this
+    is the safety net for the group-tool consolidation."""
+    grouped_names = [n for names in cleanuparr_mcp._GROUPS.values() for n in names]
+    assert sorted(grouped_names) == sorted(ALL_TOOL_NAMES)
+    assert len(grouped_names) == len(set(grouped_names))
+
+
+async def test_group_tools_are_the_only_registered_tools(server):
+    async with Client(server) as c:
+        tools = await c.list_tools()
+    assert {t.name for t in tools} == set(cleanuparr_mcp._GROUPS)
+
+
+async def test_unknown_operation_rejected_by_schema(server):
+    # The Literal[...] enum on `operation` means an invalid value never
+    # reaches _register_group's dispatch body - pydantic rejects it first.
+    with pytest.raises(ToolError, match="validation error"):
+        async with Client(server) as c:
+            await c.call_tool("cleanuparr_jobs", {"operation": "not_a_real_operation"})

@@ -40,16 +40,33 @@ claude mcp add cleanuparr \
 
 ## Tools
 
-The server exposes the full practical Cleanuparr API surface:
+**8 resource-scoped tools**, each covering multiple Cleanuparr REST endpoints
+(84 total) via an `operation` parameter. Call a tool with `operation` set to
+one of its listed operations and an `arguments` dict matching that
+operation's parameters — the tool's own description (visible to your MCP
+client) lists every operation, its signature, and a one-line doc. This keeps
+the full API surface available while costing a fraction of the context
+budget of registering all 84 endpoints as separate tools.
 
-- Health and status: health, readiness, detailed health, health checks, system, *arr, and download-client status.
-- Jobs: list, inspect, trigger, start, and schedule jobs.
-- History: events, manual events, strikes, timelines, stats, Seeker search events, and custom-format scores.
-- Configuration: general, *arr instances, download clients, queue rules, queue/download cleaners, dead torrents, orphaned/unlinked files, seeding rules, malware blocker, Seeker, blacklist sync, and notifications.
+| Tool | Operations | Covers |
+|---|---|---|
+| `cleanuparr_cleaner_config` | 19 | Queue/download cleaners, dead torrents, orphaned/unlinked files, seeding rules |
+| `cleanuparr_events` | 18 | Events, manual events, strikes, timelines, stats |
+| `cleanuparr_arr_download_clients` | 15 | General config, *arr instances, download clients |
+| `cleanuparr_health_status` | 8 | Health, readiness, system/*arr/download-client status |
+| `cleanuparr_stats` | 7 | Seeker search events, custom-format scores |
+| `cleanuparr_notifications` | 6 | Notification providers |
+| `cleanuparr_feature_configs` | 6 | Malware blocker, Seeker, blacklist sync |
+| `cleanuparr_jobs` | 5 | List, inspect, trigger, start, schedule jobs |
 
-Write tools are marked destructive where appropriate. Cleanuparr returns `503`
-when its configuration database is busy; this server does not retry and instead
-returns the upstream error to the MCP client.
+Example: `cleanuparr_jobs(operation="cleanuparr_trigger_job", arguments={"job_type": "QueueCleaner"})`.
+Endpoint-level naming (`cleanuparr_<verb>_<resource>`) is preserved as the
+`operation` value, so the full endpoint list is still discoverable from each
+group tool's description at runtime.
+
+Destructive operations are noted in their operation-line doc. Cleanuparr
+returns `503` when its configuration database is busy; this server does not
+retry and instead returns the upstream error to the MCP client.
 
 Request bodies are pass-through JSON dictionaries matching the DTOs in the
 running Cleanuparr version. Sensitive update fields should use Cleanuparr's
