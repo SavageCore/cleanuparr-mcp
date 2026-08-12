@@ -1,7 +1,8 @@
 # cleanuparr-mcp
 
-An MCP server exposing Cleanuparr's REST API as tools for inspecting status,
-history, statistics, jobs, and configuration.
+An MCP server exposing [Cleanuparr](https://github.com/Cleanuparr/Cleanuparr)'s
+REST API as tools for inspecting status, history, statistics, jobs, and
+configuration.
 
 ## Requirements
 
