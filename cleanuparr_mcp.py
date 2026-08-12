@@ -118,7 +118,7 @@ async def cleanuparr_run_health_check(check_id: str | None = None) -> JSONObj:
 # Jobs ------------------------------------------------------------------------
 
 @mcp.tool(annotations=READONLY)
-async def cleanuparr_list_jobs() -> JSONObj:
+async def cleanuparr_list_jobs() -> JSONVal:
     """List scheduled jobs and their current status."""
     return await _req("GET", "/Jobs")
 
@@ -171,19 +171,19 @@ async def cleanuparr_get_event(event_id: str) -> JSONObj:
 
 
 @mcp.tool(annotations=READONLY)
-async def cleanuparr_get_events_by_tracking(tracking_id: str) -> JSONObj:
+async def cleanuparr_get_events_by_tracking(tracking_id: str) -> JSONVal:
     """Get events associated with a tracking GUID."""
     return await _req("GET", f"/Events/tracking/{_path(tracking_id)}")
 
 
 @mcp.tool(annotations=READONLY)
-async def cleanuparr_list_event_types() -> JSONObj:
+async def cleanuparr_list_event_types() -> JSONVal:
     """List event type enum values."""
     return await _req("GET", "/Events/types")
 
 
 @mcp.tool(annotations=READONLY)
-async def cleanuparr_list_event_severities() -> JSONObj:
+async def cleanuparr_list_event_severities() -> JSONVal:
     """List event severity enum values."""
     return await _req("GET", "/Events/severities")
 
@@ -232,7 +232,7 @@ async def cleanuparr_get_manual_event_stats() -> JSONObj:
 
 
 @mcp.tool(annotations=READONLY)
-async def cleanuparr_list_manual_event_severities() -> JSONObj:
+async def cleanuparr_list_manual_event_severities() -> JSONVal:
     """List manual-event severity enum values."""
     return await _req("GET", "/ManualEvents/severities")
 
@@ -249,13 +249,13 @@ async def cleanuparr_list_strikes(
 
 
 @mcp.tool(annotations=READONLY)
-async def cleanuparr_list_recent_strikes(count: int = 5) -> JSONObj:
+async def cleanuparr_list_recent_strikes(count: int = 5) -> JSONVal:
     """List recent strikes; count is capped by the API at 50."""
     return await _req("GET", "/Strikes/recent", params={"count": count})
 
 
 @mcp.tool(annotations=READONLY)
-async def cleanuparr_list_strike_types() -> JSONObj:
+async def cleanuparr_list_strike_types() -> JSONVal:
     """List strike type enum values."""
     return await _req("GET", "/Strikes/types")
 
@@ -276,7 +276,7 @@ async def cleanuparr_get_stats(hours: int = 168, include_dry_run: bool = False) 
 async def cleanuparr_get_stats_timeline(
     metric: str = "events", hours: int = 720, bucket: str | None = None,
     include_dry_run: bool = False,
-) -> JSONObj:
+) -> JSONVal:
     """Get v2 metric timeline. Metrics include events, strikesIssued, recovered,
     removed, and malwareBlocked; buckets include hour, day, week, and month."""
     return await _req("GET", "/v2/stats/timeline", params=_params(
@@ -557,7 +557,7 @@ async def cleanuparr_update_orphaned_files_config(download_client_id: str, confi
 
 
 @mcp.tool(annotations=READONLY)
-async def cleanuparr_list_seeding_rules(download_client_id: str) -> JSONObj:
+async def cleanuparr_list_seeding_rules(download_client_id: str) -> JSONVal:
     """List seeding rules for a download-client GUID."""
     return await _req("GET", f"/seeding-rules/{_path(download_client_id)}")
 

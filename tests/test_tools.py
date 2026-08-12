@@ -131,6 +131,13 @@ async def test_no_api_key_header(recorder, monkeypatch):
     await client.aclose()
 
 
+async def test_list_returning_tools(server, recorder):
+    recorder.response = httpx.Response(200, json=[{"id": "a"}, {"id": "b"}])
+    result = await call(server, "cleanuparr_list_seeding_rules", download_client_id="client")
+    assert result.structured_content == {"result": [{"id": "a"}, {"id": "b"}]}
+    assert result.data is not None
+
+
 async def test_error_message(server, recorder):
     recorder.response = httpx.Response(503, json={"message": "Database is busy"})
     with pytest.raises(ToolError, match="503.*Database is busy"):
