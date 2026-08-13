@@ -100,7 +100,6 @@ async def test_endpoint_routes(server, recorder, name, kwargs, method, path):
     ("name", "kwargs", "method", "path", "body"),
     [
         ("cleanuparr_start_job", {"job_type": "QueueCleaner", "schedule": {"cron": "x"}}, "POST", "/api/Jobs/QueueCleaner/start", {"schedule": {"cron": "x"}}),
-        ("cleanuparr_update_general_config", {"config": {"dryRun": True}}, "PUT", "/api/configuration/general", {"dryRun": True}),
         ("cleanuparr_create_download_client", {"client": {"name": "qbit"}}, "POST", "/api/configuration/download_client", {"name": "qbit"}),
         ("cleanuparr_update_queue_cleaner_config", {"config": {"enabled": False}}, "PUT", "/api/configuration/queue_cleaner", {"enabled": False}),
         ("cleanuparr_update_dead_torrent_config", {"download_client_id": "x", "config": {"enabled": True}}, "PUT", "/api/dead-torrent-config/x", {"enabled": True}),
@@ -120,6 +119,33 @@ async def test_query_parameters(server, recorder):
     assert recorder.url.params["page"] == "2"
     assert recorder.url.params["pageSize"] == "10"
     assert recorder.url.params["severity"] == "Warning"
+
+
+async def test_update_general_config_merges_not_replaces(server, recorder):
+    """A raw PUT /configuration/general resets unspecified fields to defaults
+    (that's how displaySupportBanner/auth got clobbered in production). The
+    tool must do a read-modify-write: GET current, deep-merge the caller's
+    fields, PUT the full config."""
+    current = {
+        "dryRun": True,
+        "displaySupportBanner": False,
+        "auth": {
+            "disableAuthForLocalAddresses": True,
+            "trustForwardedHeaders": True,
+        },
+    }
+    recorder.response = httpx.Response(200, json=current)
+    await call(server, "cleanuparr_update_general_config", config={"dryRun": False})
+    assert recorder.method == "PUT"
+    assert recorder.url.path == "/api/configuration/general"
+    assert recorder.json == {
+        "dryRun": False,
+        "displaySupportBanner": False,
+        "auth": {
+            "disableAuthForLocalAddresses": True,
+            "trustForwardedHeaders": True,
+        },
+    }
 
 
 async def test_api_key_header(server, recorder):

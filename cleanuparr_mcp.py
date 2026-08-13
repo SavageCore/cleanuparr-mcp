@@ -50,6 +50,24 @@ def _path(value: str) -> str:
     return quote(value, safe="")
 
 
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Merge `override` into `base` recursively, preserving `base` values for
+    keys `override` doesn't mention. Lists/scalars in `override` replace
+    wholesale. Used so a partial config update can't silently reset unrelated
+    fields (e.g. auth, displaySupportBanner) to defaults on a full PUT."""
+    merged = dict(base)
+    for key, value in override.items():
+        if (
+            key in merged
+            and isinstance(merged[key], dict)
+            and isinstance(value, dict)
+        ):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
 async def _req(
     method: str,
     path: str,
@@ -445,9 +463,17 @@ async def cleanuparr_get_general_config() -> JSONObj:
 
 
 async def cleanuparr_update_general_config(config: dict) -> JSONObj:
-    """Replace general config. Fields include dryRun, retry/timeout settings,
-    ignoredDownloads, connectivity, retention, log, and auth objects."""
-    return await _req("PUT", "/configuration/general", config)
+    """Merge fields into the current general config and PUT the result.
+
+    A raw PUT replaces the whole resource, so sending only changed fields
+    (e.g. ``{"dryRun": false}``) resets every unspecified field — including
+    ``displaySupportBanner`` and the ``auth`` object — to defaults. This
+    read-modify-write preserves current values for anything not in `config`.
+    Fields include dryRun, retry/timeout settings, ignoredDownloads,
+    connectivity, retention, log, and auth objects."""
+    current = await cleanuparr_get_general_config()
+    merged = _deep_merge(current, config)
+    return await _req("PUT", "/configuration/general", merged)
 
 
 async def cleanuparr_purge_strikes() -> JSONObj:
