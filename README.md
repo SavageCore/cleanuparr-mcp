@@ -1,6 +1,6 @@
 # cleanuparr-mcp
 
-Part of the [arr-mcps](https://github.com/SavageCore/arr-mcps) collection.
+Part of the [arr-mcps](https://github.com/arr-mcps/arr-mcps) collection.
 An MCP server exposing [Cleanuparr](https://github.com/Cleanuparr/Cleanuparr)'s
 REST API as tools for inspecting status, history, statistics, jobs, and
 configuration.
